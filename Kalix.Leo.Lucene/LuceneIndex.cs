@@ -84,7 +84,7 @@ namespace Kalix.Leo.Lucene
             return Task.FromResult(0);
         }
 
-        public async Task WriteToIndex(Func<TrackingIndexWriter, Task> writeUsingIndex)
+        public async Task WriteToIndex(Func<TrackingIndexWriter, Task> writeUsingIndex, bool waitForGeneration = false)
         {
             if (_isDisposed)
             {
@@ -93,6 +93,13 @@ namespace Kalix.Leo.Lucene
 
             var writer = GetWriter();
             await writeUsingIndex(writer).ConfigureAwait(false);
+
+            if (waitForGeneration)
+            {
+                // This is a bit hacky but no point waiting for the generation but then
+                // not commiting it so that it can be used on other machines
+                _writer.ForceCommit();
+            }
         }
 
         public IEnumerable<Document> SearchDocuments(Func<IndexSearcher, TopDocs> doSearchFunc, bool forceCheck = false)

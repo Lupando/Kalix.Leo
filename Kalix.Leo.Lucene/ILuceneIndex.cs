@@ -42,7 +42,7 @@ namespace Kalix.Leo.Lucene
         /// </summary>
         /// <param name="writeUsingIndex">Do your indexing with the provided index</param>
         /// <returns>A task that is complete when all the documents have been indexed</returns>
-        Task WriteToIndex(Func<TrackingIndexWriter, Task> writeUsingIndex);
+        Task WriteToIndex(Func<TrackingIndexWriter, Task> writeUsingIndex, bool waitForGeneration = false);
 
         /// <summary>
         /// Delete the entire index
