@@ -2,6 +2,7 @@
 using Kalix.Leo.Queue;
 using Kalix.Leo.Storage;
 using Kalix.Leo.Table;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
@@ -89,5 +90,10 @@ namespace Kalix.Leo.Configuration
         /// The resolvers to find a type by name (if null will use a default implementation)
         /// </summary>
         public Func<string, Type> TypeNameResolver { get; set; }
+
+        /// <summary>
+        /// Memory cache to cache partitions, indexes, etc
+        /// </summary>
+        public IMemoryCache MemoryCache { get; set; }
     }
 }
