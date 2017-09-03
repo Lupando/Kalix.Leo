@@ -90,7 +90,7 @@ namespace Kalix.Leo.Azure.Storage
                         blocks.Add(GetKey(i));
                     }
 
-                    await _blob.PutBlockListAsync(blocks, ct).ConfigureAwait(false);
+                    await _blob.PutBlockListAsync(blocks, null, null, null, ct).ConfigureAwait(false);
                     LeoTrace.WriteLine("Finished Put Blocks using " + _partNumber + " total blocks: " + _blob.Name);
                 }
                 _buff.SetLength(0);

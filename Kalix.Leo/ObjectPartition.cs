@@ -2,6 +2,7 @@
 using Kalix.Leo.Encryption;
 using Kalix.Leo.Internal;
 using Kalix.Leo.Storage;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -18,8 +19,8 @@ namespace Kalix.Leo
     {
         private readonly Lazy<UniqueIdGenerator> _idGenerator;
 
-        public ObjectPartition(LeoEngineConfiguration engineConfig, long partitionId, ItemConfiguration config, Func<Task<IEncryptor>> encFactory)
-            : base(engineConfig, partitionId, config, encFactory)
+        public ObjectPartition(LeoEngineConfiguration engineConfig, long partitionId, ItemConfiguration config, Func<Task<IEncryptor>> encFactory, IMemoryCache cache, string cachePrefix)
+            : base(engineConfig, partitionId, config, encFactory, cache, $"{cachePrefix}::Object")
         {
             _idGenerator = new Lazy<UniqueIdGenerator>(() =>
             {

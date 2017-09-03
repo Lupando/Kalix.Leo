@@ -61,7 +61,7 @@ namespace Kalix.Leo.Amazon.Storage
             return r.VersionId;
         }
 
-        public void Abort()
+        public async Task Abort()
         {
             // No need to cancel if the uploadid call is the thing that failed
             if (_uploadId.IsFaulted || !_uploadId.IsCompleted) { return; }
@@ -73,7 +73,7 @@ namespace Kalix.Leo.Amazon.Storage
                 UploadId = _uploadId.Result
             };
 
-            _client.AbortMultipartUpload(abortMPURequest);
+            await _client.AbortMultipartUploadAsync(abortMPURequest).ConfigureAwait(false);
         }
 
         private async Task<UploadPartResponse> PushBlockOfDataInteral(byte[] data, int partNumber)

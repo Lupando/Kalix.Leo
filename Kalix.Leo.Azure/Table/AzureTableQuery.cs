@@ -190,7 +190,7 @@ namespace Kalix.Leo.Azure.Table
                 CT.TableQuerySegment<FatEntity> segment = null;
                 do
                 {
-                    segment = await _table.ExecuteWrap(t => t.ExecuteQuerySegmentedAsync(query, segment == null ? null : segment.ContinuationToken, y.CancellationToken)).ConfigureAwait(false);
+                    segment = await _table.ExecuteWrap(t => t.ExecuteQuerySegmentedAsync(query, segment == null ? null : segment.ContinuationToken, null, null, y.CancellationToken)).ConfigureAwait(false);
                     foreach (var entity in segment)
                     {
                         await y.YieldReturn(ConvertFatEntity(entity)).ConfigureAwait(false);
@@ -216,7 +216,7 @@ namespace Kalix.Leo.Azure.Table
             CT.TableQuerySegment<FatEntity> segment = null;
             do
             {
-                segment = await _table.ExecuteWrap(t => t.ExecuteQuerySegmentedAsync(query, segment?.ContinuationToken, token)).ConfigureAwait(false);
+                segment = await _table.ExecuteWrap(t => t.ExecuteQuerySegmentedAsync(query, segment?.ContinuationToken, null, null, token)).ConfigureAwait(false);
                 count += segment.Results.Count;
             }
             while (segment.ContinuationToken != null);

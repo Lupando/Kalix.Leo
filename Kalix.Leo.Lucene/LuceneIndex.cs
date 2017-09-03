@@ -3,19 +3,15 @@ using Kalix.Leo.Lucene.Analysis;
 using Kalix.Leo.Lucene.Store;
 using Kalix.Leo.Storage;
 using Lucene.Net.Analysis;
-using Lucene.Net.Contrib.Management;
-using Lucene.Net.Contrib.Management.Client;
+using Lucene.Net.Analysis.Miscellaneous;
 using Lucene.Net.Documents;
 using Lucene.Net.Index;
 using Lucene.Net.Search;
 using Lucene.Net.Store;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
-using IO = System.IO;
-using L = Lucene.Net.Index;
-using System.Linq;
 
 namespace Kalix.Leo.Lucene
 {
@@ -24,15 +20,11 @@ namespace Kalix.Leo.Lucene
         private readonly Directory _directory;
         private readonly Analyzer _analyzer;
 
-        private readonly Directory _cacheDirectory;
-
-        private IndexSearcher _reader;
+        private Lazy<SearcherManager> _reader;
         private DateTime _lastRead;
 
         private SearcherContextInternal _writer;
         private object _writerLock = new object();
-
-        private readonly double _RAMSizeMb;
         private bool _isDisposed;
 
         /// <summary>
@@ -46,23 +38,13 @@ namespace Kalix.Leo.Lucene
         /// <param name="encryptor">The encryptor to encryt any records being saved</param>
         /// <param name="fileBasedPath">If not null, will build lucene file cache at this location (instead of an in-memory one)</param>
         /// <param name="secsTillReaderRefresh">This is the amount of time to cache the reader before updating it</param>
-        public LuceneIndex(ISecureStore store, string container, string basePath, Lazy<Task<IEncryptor>> encryptor, string fileBasedPath = null, double RAMSizeMb = 20, int secsTillReaderRefresh = 10)
+        public LuceneIndex(ISecureStore store, string container, string basePath, Lazy<Task<IEncryptor>> encryptor, int secsTillReaderRefresh = 10, IMemoryCache cache = null, string cachePrefix = null)
         {
             encryptor = encryptor ?? new Lazy<Task<IEncryptor>>(() => Task.FromResult((IEncryptor)null));
-
-            if (string.IsNullOrWhiteSpace(fileBasedPath))
-            {
-                _cacheDirectory = new RAMDirectory();
-            }
-            else
-            {
-                var path = IO.Path.Combine(fileBasedPath, container, basePath);
-                _cacheDirectory = new MMapDirectory(new System.IO.DirectoryInfo(path));
-            }
             
-            _directory = new SecureStoreDirectory(_cacheDirectory, store, container, basePath, encryptor);
+            _directory = new NRTCachingDirectory(new SecureStoreDirectory(store, container, basePath, encryptor, cache, cachePrefix), 5.0, 25.0);
+            _reader = new Lazy<SearcherManager>(() => new SearcherManager(_directory, null));
             _analyzer = new EnglishAnalyzer();
-            _RAMSizeMb = RAMSizeMb;
         }
 
         /// <summary>
@@ -75,8 +57,8 @@ namespace Kalix.Leo.Lucene
         public LuceneIndex(Directory directory, Analyzer analyzer, double RAMSizeMb = 20, int secsTillReaderRefresh = 10)
         {
             _directory = directory;
+            _reader = new Lazy<SearcherManager>(() => new SearcherManager(_directory, null));
             _analyzer = analyzer;
-            _RAMSizeMb = RAMSizeMb;
         }
 
         public Task WriteToIndex(IEnumerable<Document> documents, bool waitForGeneration = false)
@@ -95,16 +77,14 @@ namespace Kalix.Leo.Lucene
 
             if(waitForGeneration)
             {
-                writer.WaitForGeneration(gen);
-
                 // This is a bit hacky but no point waiting for the generation but then
                 // not commiting it so that it can be used on other machines
-                _writer._writer.Commit();
+                _writer.ForceCommit();
             }
             return Task.FromResult(0);
         }
 
-        public async Task WriteToIndex(Func<NrtManager, Task> writeUsingIndex)
+        public async Task WriteToIndex(Func<TrackingIndexWriter, Task> writeUsingIndex)
         {
             if (_isDisposed)
             {
@@ -132,32 +112,21 @@ namespace Kalix.Leo.Lucene
                 throw new ObjectDisposedException("LuceneIndex");
             }
             
-            if (_writer != null)
-            {
-                if (forceCheck)
-                {
-                    _writer.Manager.MaybeReopen(true);
-                }
-                using (var searcher = _writer.GetSearcher())
-                {
-                    var docs = doSearchFunc(searcher.Searcher, _analyzer);
+            var manager = GetSearcherManager(forceCheck);
+            var reader = manager.Acquire();
 
-                    foreach (var doc in docs.ScoreDocs)
-                    {
-                        yield return searcher.Searcher.Doc(doc.Doc);
-                    }
-                }
-            }
-            else
+            try
             {
-                var reader = GetReader(forceCheck);
-                
                 var docs = doSearchFunc(reader, _analyzer);
 
                 foreach (var doc in docs.ScoreDocs)
                 {
                     yield return reader.Doc(doc.Doc);
                 }
+            }
+            finally
+            {
+                manager.Release(reader);
             }
         }
 
@@ -173,39 +142,20 @@ namespace Kalix.Leo.Lucene
             return Task.FromResult(0);
         }
 
-        private IndexSearcher GetReader(bool forceCheck)
+        private SearcherManager GetSearcherManager(bool forceCheck)
         {
-            var currentReader = _reader;
-            if (currentReader == null)
+            var searcher = _writer?.GetSearcher() ?? _reader.Value;
+            
+            if (forceCheck || _lastRead.AddSeconds(5) < DateTime.UtcNow)
             {
-                try
-                {
-                    currentReader = new IndexSearcher(_directory, true);
-                }
-                catch (System.IO.FileNotFoundException)
-                {
-                    // this index doesn't exist... make it!
-                    using (new L.IndexWriter(_directory, _analyzer, true, L.IndexWriter.MaxFieldLength.UNLIMITED)) { }
-                    currentReader = new IndexSearcher(_directory, true);
-                }
-
-                _lastRead = DateTime.UtcNow;
-            }
-            else if (forceCheck || _lastRead.AddSeconds(5) < DateTime.UtcNow)
-            {
-                if (!currentReader.IndexReader.IsCurrent())
-                {
-                    // Note: we are specifically not disposing here so that any queries can finish on the old reader
-                    currentReader = new IndexSearcher(_directory, true);
-                }
+                searcher.MaybeRefreshBlocking();
                 _lastRead = DateTime.UtcNow;
             }
 
-            _reader = currentReader;
-            return currentReader;
+            return searcher;
         }
 
-        private NrtManager GetWriter()
+        private TrackingIndexWriter GetWriter()
         {
             if(_writer == null)
             {
@@ -225,7 +175,7 @@ namespace Kalix.Leo.Lucene
                 _reader = null;
             }
 
-            return _writer.Manager;
+            return _writer.Writer;
         }
 
         public void Dispose()
@@ -233,9 +183,9 @@ namespace Kalix.Leo.Lucene
             if (!_isDisposed)
             {
                 _isDisposed = true;
-                if(_reader != null)
+                if(_reader != null && _reader.IsValueCreated)
                 {
-                    _reader.Dispose();
+                    _reader.Value.Dispose();
                 }
                 if(_writer != null)
                 {
@@ -243,34 +193,21 @@ namespace Kalix.Leo.Lucene
                 }
                 _analyzer.Dispose();
                 _directory.Dispose();
-
-                if (_cacheDirectory != null)
-                {
-                    _cacheDirectory.Dispose();
-                }
             }
         }
-
-        /// <summary>
-        /// Copied from (but slightly modified so we can access indexwriter)
-        /// https://github.com/NielsKuhnel/NrtManager/blob/master/source/Lucene.Net.Contrib.Management/Client/SearcherContext.cs
-        /// </summary>
+        
         private class SearcherContextInternal : IDisposable
         {
-            public NrtManager Manager { get; private set; }
-
             public PerFieldAnalyzerWrapper Analyzer { get; private set; }
 
-            public readonly IndexWriter _writer;
-
-            private readonly NrtManagerReopener _reopener;
-            private readonly Committer _committer;
-
-            private readonly List<Thread> _threads = new List<Thread>();
+            private readonly IndexWriter _writer;
+            private readonly TrackingIndexWriter _trackingWriter;
+            private readonly SearcherManager _searcherManager;
+            private readonly ControlledRealTimeReopenThread<IndexSearcher> _nrtReopenThread;
 
             public SearcherContextInternal(Directory dir, Analyzer defaultAnalyzer)
                 : this(dir, defaultAnalyzer, TimeSpan.FromSeconds(.1), TimeSpan.FromSeconds(2),
-                TimeSpan.FromSeconds(10), TimeSpan.FromHours(2))
+                TimeSpan.FromSeconds(5), TimeSpan.FromHours(2))
             {
             }
 
@@ -279,38 +216,32 @@ namespace Kalix.Leo.Lucene
                             TimeSpan commitInterval, TimeSpan optimizeInterval)
             {
                 Analyzer = new PerFieldAnalyzerWrapper(defaultAnalyzer);
-                _writer = new IndexWriter(dir, Analyzer, IndexWriter.MaxFieldLength.UNLIMITED);
-
-                Manager = new NrtManager(_writer);
-                _reopener = new NrtManagerReopener(Manager, targetMaxStale, targetMinStale);
-                _committer = new Committer(_writer, commitInterval, optimizeInterval);
-
-                _threads.AddRange(new[] { new Thread(_reopener.Start), new Thread(_committer.Start) });
-
-                foreach (var t in _threads)
-                {
-                    t.Start();
-                }
+                _writer = new IndexWriter(dir, new IndexWriterConfig(LeoLuceneVersion.Version, Analyzer));
+                _trackingWriter = new TrackingIndexWriter(_writer);
+                _searcherManager = new SearcherManager(_writer, true, null);
+                _nrtReopenThread = new ControlledRealTimeReopenThread<IndexSearcher>(_trackingWriter, _searcherManager, 1.0, 0.1);
+                _nrtReopenThread.SetDaemon(true);
+                _nrtReopenThread.Start();
             }
 
-            public SearcherManager.IndexSearcherToken GetSearcher()
+            public TrackingIndexWriter Writer => _trackingWriter;
+
+            public SearcherManager GetSearcher()
             {
-                return Manager.GetSearcherManager().Acquire();
+                return _searcherManager;
+            }
+
+            public void ForceCommit()
+            {
+                _writer.WaitForMerges();
+                _writer.Commit();
             }
 
             public void Dispose()
             {
-                var disposeActions = new List<Action>
-                {
-                    _reopener.Dispose,
-                    _committer.Dispose,
-                    Manager.Dispose,
-                    () => _writer.Dispose(true)
-                };
-
-                disposeActions.AddRange(_threads.Select(t => (Action)t.Join));
-
-                DisposeUtil.PostponeExceptions(disposeActions.ToArray());
+                _nrtReopenThread.Dispose();
+                _searcherManager.Dispose();
+                _writer.Dispose();
             }
         }
     }

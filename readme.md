@@ -12,7 +12,4 @@ TODO...
 
 ## Licence
 
-This project relies heavily on the "CLR-Security" project which uses the Microsoft Limited Permissive License (Ms-LPL).
-This limits this library to be compatible so we have also chosen to use the Microsoft Limited Permissive License (Ms-LPL).
-
-See the full licence in LICENSE.txt
+https://opensource.org/licenses/mit

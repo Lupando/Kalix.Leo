@@ -4,6 +4,7 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 using NUnit.Framework;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Kalix.Leo.Azure.Tests.Table
 {
@@ -14,26 +15,26 @@ namespace Kalix.Leo.Azure.Tests.Table
         protected AzureTableContext _azureTable;
 
         [SetUp]
-        public virtual void Init()
+        public virtual async Task Init()
         {
             var client = CloudStorageAccount.DevelopmentStorageAccount.CreateCloudTableClient();
             _table = client.GetTableReference("kalixleotablecontext");
-            _table.CreateIfNotExists();
+            await _table.CreateIfNotExistsAsync().ConfigureAwait(false);
 
             _azureTable = new AzureTableContext(_table, null);
         }
 
         [TearDown]
-        public virtual void TearDown()
+        public virtual async Task TearDown()
         {
-            _table.DeleteIfExists();
+            await _table.DeleteIfExistsAsync().ConfigureAwait(false);
         }
 
         [TestFixture]
         public class DeleteMethod : AzureTableContextTests
         {
             [Test]
-            public void CanDeleteEvenWhenRowDoesNotExist()
+            public async Task CanDeleteEvenWhenRowDoesNotExist()
             {
                 _azureTable.Delete(new TestEntity { RowKey = "test1", PartitionKey = "delete" });
                 _azureTable.Delete(new TestEntity { RowKey = "test2", PartitionKey = "delete" });
@@ -41,7 +42,7 @@ namespace Kalix.Leo.Azure.Tests.Table
                 _azureTable.Save().Wait();
 
                 var query = new TableQuery<FatEntity>().Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, "delete"));
-                var items = _table.ExecuteQuery(query);
+                var items = await _table.ExecuteQuerySegmentedAsync(query, null).ConfigureAwait(false);
 
                 Assert.IsFalse(items.Any());
             }

@@ -33,18 +33,13 @@ namespace Kalix.Leo.Lucene.Store
             return _lock != null;
         }
 
-        public override void Release()
+        protected override void Dispose(bool disposing)
         {
-            if(_lock != null)
+            if (_lock != null)
             {
                 _lock.Dispose();
                 _lock = null;
             }
-        }
-
-        public void Dispose()
-        {
-            Release();
         }
     }
 }

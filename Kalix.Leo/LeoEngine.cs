@@ -3,12 +3,12 @@ using Kalix.Leo.Encryption;
 using Kalix.Leo.Indexing;
 using Kalix.Leo.Listeners;
 using Kalix.Leo.Storage;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Caching;
 using System.Threading.Tasks;
 
 namespace Kalix.Leo
@@ -21,8 +21,8 @@ namespace Kalix.Leo
         private readonly Lazy<IRecordSearchComposer> _composer;
         
         private static readonly object _cacheLock = new object();
-        private readonly MemoryCache _cache;
-        private readonly CacheItemPolicy _cachePolicy;
+        private readonly IMemoryCache _cache;
+        private readonly Action<ICacheEntry> _cachePolicy;
         private readonly string _baseName;
 
         private bool _listenersStarted;
@@ -35,19 +35,15 @@ namespace Kalix.Leo
             _disposables = new List<IDisposable>();
             _backupListener = config.BackupStore != null && config.BackupQueue != null ? new BackupListener(config.BackupQueue, config.BaseStore, config.BackupStore) : null;
             _indexListener = config.IndexQueue != null ? new IndexListener(config.IndexQueue, config.TypeResolver, config.TypeNameResolver) : null;
-            _cache = MemoryCache.Default;
-            _cachePolicy = new CacheItemPolicy
+            _cache = new MemoryCache(new MemoryCacheOptions());
+            _cachePolicy = c =>
             {
-                Priority = CacheItemPriority.Default,
-                SlidingExpiration = TimeSpan.FromHours(1),
-                RemovedCallback = (a) => 
+                c.Priority = CacheItemPriority.Normal;
+                c.SlidingExpiration = TimeSpan.FromHours(1);
+                c.RegisterPostEvictionCallback((key, value, reason, state) =>
                 {
-                    var disp = a.CacheItem.Value as IDisposable;
-                    if(disp != null)
-                    {
-                        disp.Dispose();
-                    }
-                }
+                    if (value is IDisposable disp) { disp.Dispose(); }
+                });
             };
 
             _baseName = "LeoEngine::" + config.UniqueName + "::";
@@ -96,7 +92,7 @@ namespace Kalix.Leo
             }
             var key = _baseName + config.BasePath + "::" + partitionId.ToString(CultureInfo.InvariantCulture);
 
-            return GetCachedValue(key, () => new ObjectPartition<T>(_config, partitionId, config, () => GetEncryptor(partitionId)));
+            return GetCachedValue(key, () => new ObjectPartition<T>(_config, partitionId, config, () => GetEncryptor(partitionId), _cache, _baseName));
         }
 
         public IDocumentPartition GetDocumentPartition(string basePath, long partitionId)
@@ -109,7 +105,7 @@ namespace Kalix.Leo
 
             var key = _baseName + config.BasePath + "::" + partitionId.ToString(CultureInfo.InvariantCulture);
 
-            return GetCachedValue(key, () => new DocumentPartition(_config, partitionId, config, () => GetEncryptor(partitionId)));
+            return GetCachedValue(key, () => new DocumentPartition(_config, partitionId, config, () => GetEncryptor(partitionId), _cache, _baseName));
         }
 
         public Task<IEncryptor> GetEncryptor(long partitionId)
@@ -156,33 +152,21 @@ namespace Kalix.Leo
         private Task<T> GetCachedValue<T>(string key, Func<Task<T>> factory)
             where T : class
         {
-            // This is very safe, will only create one. This will not dispose, but that was the case anyways
-            var lazy = new Lazy<Task<T>>(factory, true);
-            _cache.AddOrGetExisting(key, lazy, _cachePolicy);
-            return ((Lazy<Task<T>>)_cache.Get(key)).Value;
+            return _cache.GetOrCreateAsync(key, c =>
+            {
+                _cachePolicy(c);
+                return factory();
+            });
         }
 
         private T GetCachedValue<T>(string key, Func<T> factory)
             where T : class, IDisposable
         {
-            // We need this method to produce values that will be disposed when removed from the cache
-            // Not so important that we create additional values
-            var value = _cache.Get(key);
-            if (value == null)
+            return _cache.GetOrCreate(key, c =>
             {
-                var newValue = factory();
-                value = _cache.AddOrGetExisting(key, newValue, _cachePolicy);
-                if (value == null)
-                {
-                    value = newValue;
-                }
-                else
-                {
-                    // We can dispose this one straight away, we are using something that already exists
-                    newValue.Dispose();
-                }
-            }
-            return (T)value;
+                _cachePolicy(c);
+                return factory();
+            });
         }
 
         private static MethodInfo _genericGetPartitionInfo = typeof(LeoEngine).GetMethod("GetObjectPartition");

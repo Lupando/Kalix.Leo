@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using IO = System.IO;
 
 namespace Kalix.Leo.Lucene.Tests
 {
@@ -20,7 +19,6 @@ namespace Kalix.Leo.Lucene.Tests
     {
         protected IOptimisticStore _store;
         protected LuceneIndex _indexer;
-        private string _tempDir;
 
         [SetUp]
         public void Init()
@@ -29,12 +27,8 @@ namespace Kalix.Leo.Lucene.Tests
             _store = new AzureStore(client, false, null); // Do not snapshot and do tracing!
             _store.CreateContainerIfNotExists("testindexer");
 
-            // Use a file based cache for tests (more common use case)
-            _tempDir = IO.Path.Combine(IO.Path.GetTempPath(), IO.Path.GetFileNameWithoutExtension(IO.Path.GetRandomFileName()));
-            IO.Directory.CreateDirectory(_tempDir);
-
             var store = new SecureStore(_store);
-            _indexer = new LuceneIndex(store, "testindexer", "basePath", null, _tempDir);
+            _indexer = new LuceneIndex(store, "testindexer", "basePath", null);
         }
 
         [TearDown]
@@ -42,7 +36,6 @@ namespace Kalix.Leo.Lucene.Tests
         {
             _indexer.DeleteAll().Wait();
             _indexer.Dispose();
-            IO.Directory.Delete(_tempDir, true);
         }
 
         [Test]
@@ -146,7 +139,7 @@ namespace Kalix.Leo.Lucene.Tests
             {
                 var query = new TermQuery(new Term("words", "ipsum"));
                 return ind.Search(query, 20);
-            }).ToList();
+            }, true).ToList();
 
             Assert.Greater(number.Count, 0);
         }
@@ -194,8 +187,8 @@ namespace Kalix.Leo.Lucene.Tests
                     }
 
                     var doc = new Document();
-                    doc.Add(new NumericField("id").SetIntValue(i));
-                    doc.Add(new Field("words", Ipsum.GetPhrase(20), Field.Store.NO, Field.Index.ANALYZED, Field.TermVector.NO));
+                    doc.Add(new StoredField("id", i));
+                    doc.Add(new TextField("words", Ipsum.GetPhrase(20), Field.Store.NO));
                     return doc;
                 });
         }

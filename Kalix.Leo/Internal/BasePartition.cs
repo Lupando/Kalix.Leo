@@ -3,6 +3,7 @@ using Kalix.Leo.Encryption;
 using Kalix.Leo.Indexing;
 using Kalix.Leo.Lucene;
 using Kalix.Leo.Storage;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -22,7 +23,7 @@ namespace Kalix.Leo.Internal
         private bool _isInit;
         private bool _disposed;
 
-        public BasePartition(LeoEngineConfiguration engineConfig, long partitionId, ItemConfiguration config, Func<Task<IEncryptor>> encryptorFactory)
+        public BasePartition(LeoEngineConfiguration engineConfig, long partitionId, ItemConfiguration config, Func<Task<IEncryptor>> encryptorFactory, IMemoryCache cache, string cachePrefix)
         {
             _store = new SecureStore(engineConfig.BaseStore, engineConfig.BackupQueue, engineConfig.IndexQueue, engineConfig.Compressor);
             _partitionId = partitionId;
@@ -37,7 +38,7 @@ namespace Kalix.Leo.Internal
             _encryptor = new Lazy<Task<IEncryptor>>(async () => config.DoEncrypt ? await encryptorFactory().ConfigureAwait(false) : null, true);
 
             string container = partitionId.ToString(CultureInfo.InvariantCulture);
-            _luceneIndex = new Lazy<LuceneIndex>(() => engineConfig.IndexStore == null ? null : new LuceneIndex(new SecureStore(engineConfig.IndexStore, null, null, engineConfig.Compressor), container, config.BasePath, _encryptor, engineConfig.LuceneCacheBasePath, 20, 10), true);
+            _luceneIndex = new Lazy<LuceneIndex>(() => engineConfig.IndexStore == null ? null : new LuceneIndex(new SecureStore(engineConfig.IndexStore, null, null, engineConfig.Compressor), container, config.BasePath, _encryptor, 10, cache, $"{cachePrefix}::{partitionId}"), true);
         }
 
         public ISearchIndex<TMain, TSearch> Index<TMain, TSearch>(IRecordSearchComposition<TMain, TSearch> composition)

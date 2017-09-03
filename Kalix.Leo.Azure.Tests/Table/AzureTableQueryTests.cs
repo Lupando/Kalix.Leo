@@ -5,6 +5,7 @@ using Microsoft.WindowsAzure.Storage.Table;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kalix.Leo.Azure.Tests.Table
 {
@@ -15,24 +16,24 @@ namespace Kalix.Leo.Azure.Tests.Table
         protected AzureTableQuery<TestEntity> _query;
 
         [SetUp]
-        public virtual void Init()
+        public virtual async Task Init()
         {
             var client = CloudStorageAccount.DevelopmentStorageAccount.CreateCloudTableClient();
             _table = client.GetTableReference("kalixleotablequery");
-            _table.CreateIfNotExists();
+            await _table.CreateIfNotExistsAsync().ConfigureAwait(false);
 
-            _table.Execute(TableOperation.InsertOrReplace(BuildEntity("test1", "test1")));
-            _table.Execute(TableOperation.InsertOrReplace(BuildEntity("test1", "test2")));
-            _table.Execute(TableOperation.InsertOrReplace(BuildEntity("test2", "test1")));
-            _table.Execute(TableOperation.InsertOrReplace(BuildEntity("test2", "test2")));
+            await _table.ExecuteAsync(TableOperation.InsertOrReplace(BuildEntity("test1", "test1"))).ConfigureAwait(false);
+            await _table.ExecuteAsync(TableOperation.InsertOrReplace(BuildEntity("test1", "test2"))).ConfigureAwait(false);
+            await _table.ExecuteAsync(TableOperation.InsertOrReplace(BuildEntity("test2", "test1"))).ConfigureAwait(false);
+            await _table.ExecuteAsync(TableOperation.InsertOrReplace(BuildEntity("test2", "test2"))).ConfigureAwait(false);
 
             _query = new AzureTableQuery<TestEntity>(_table, null);
         }
 
         [TearDown]
-        public virtual void TearDown()
+        public virtual async Task TearDown()
         {
-            _table.DeleteIfExists();
+            await _table.DeleteIfExistsAsync().ConfigureAwait(false);
         }
 
         [TestFixture]

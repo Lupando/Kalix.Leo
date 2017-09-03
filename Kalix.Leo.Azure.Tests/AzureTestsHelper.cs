@@ -2,6 +2,7 @@
 using Microsoft.WindowsAzure.Storage.Blob;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Kalix.Leo.Azure.Tests
 {
@@ -13,14 +14,14 @@ namespace Kalix.Leo.Azure.Tests
         private static Dictionary<string, CloudBlobContainer> _containers = new Dictionary<string,CloudBlobContainer>();
         private static Random _random = new Random();
 
-        public static CloudBlobContainer GetContainer(string name)
+        public static async Task<CloudBlobContainer> GetContainer(string name)
         {
             if(!_containers.ContainsKey(name))
             {
                 //CloudStorageAccount.Parse("UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://ipv4.fiddler")
                 var client = CloudStorageAccount.DevelopmentStorageAccount.CreateCloudBlobClient();
                 var container = client.GetContainerReference(name);
-                container.CreateIfNotExists();
+                await container.CreateIfNotExistsAsync().ConfigureAwait(false);
 
                 _containers[name] = container;
             }
@@ -28,13 +29,13 @@ namespace Kalix.Leo.Azure.Tests
             return _containers[name];
         }
 
-        public static CloudBlockBlob GetBlockBlob(string container, string path, bool del)
+        public static async Task<CloudBlockBlob> GetBlockBlob(string container, string path, bool del)
         {
-            var c = GetContainer(container);
+            var c = await GetContainer(container).ConfigureAwait(false);
             var b = c.GetBlockBlobReference(path);
             if (del)
             {
-                b.DeleteIfExists(DeleteSnapshotsOption.IncludeSnapshots);
+                await b.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, null, null, null).ConfigureAwait(false);
             }
 
             return b;

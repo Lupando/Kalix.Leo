@@ -126,7 +126,7 @@ namespace Kalix.Leo.Azure.Storage
                         {
                             using (var arl = lease.Item1)
                             {
-                                await blob.ExecuteWrap(b => b.FetchAttributesAsync(y.CancellationToken)).ConfigureAwait(false);
+                                await blob.ExecuteWrap(b => b.FetchAttributesAsync(null, null, null, y.CancellationToken)).ConfigureAwait(false);
                                 if (blob.Metadata.ContainsKey("lastPerformed"))
                                 {
                                     DateTimeOffset.TryParseExact(blob.Metadata["lastPerformed"], "R", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out lastPerformed);
@@ -393,7 +393,7 @@ namespace Kalix.Leo.Azure.Storage
 
                     if (e.RequestInformation.HttpStatusCode == 404)
                     {
-                        leaseId = null;
+                        return null;
                     }
                     else
                     {
@@ -416,7 +416,8 @@ namespace Kalix.Leo.Azure.Storage
                 {
                     try
                     {
-                        blob.ReleaseLease(condition);
+                        // We need to do this to make sure after the dispose the lease is gone
+                        blob.ReleaseLeaseAsync(condition).GetAwaiter().GetResult();
                     }
                     catch (Exception e)
                     {
@@ -468,19 +469,19 @@ namespace Kalix.Leo.Azure.Storage
                     blob.Metadata[MetadataConstants.ContentLengthMetadataKey] = length.Value.ToString(CultureInfo.InvariantCulture);
 
                     // Save the length straight away before the snapshot...
-                    await blob.SetMetadataAsync(token).ConfigureAwait(false);
+                    await blob.SetMetadataAsync(null, null, null, token).ConfigureAwait(false);
                 }
 
                 // Create a snapshot straight away on azure
                 // Note: this shouldnt matter for cost as any blocks that are the same do not cost extra
                 if (_enableSnapshots)
                 {
-                    var snapshotBlob = await blob.CreateSnapshotAsync(token).ConfigureAwait(false);
+                    var snapshotBlob = await blob.CreateSnapshotAsync(blob.Metadata, null, null, null, token).ConfigureAwait(false);
                     var snapshot = snapshotBlob.SnapshotTime.Value.UtcTicks.ToString(CultureInfo.InvariantCulture);
 
                     // Save the snapshot back to original blob...
                     blob.Metadata[InternalSnapshotKey] = snapshot;
-                    await blob.SetMetadataAsync(token).ConfigureAwait(false);
+                    await blob.SetMetadataAsync(null, null, null, token).ConfigureAwait(false);
 
                     LeoTrace.WriteLine("Created Snapshot: " + blob.Name);
                 }

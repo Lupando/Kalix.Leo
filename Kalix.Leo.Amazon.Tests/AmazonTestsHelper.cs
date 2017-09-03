@@ -4,6 +4,7 @@ using Amazon.S3.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Kalix.Leo.Amazon.Tests
 {
@@ -21,7 +22,7 @@ namespace Kalix.Leo.Amazon.Tests
             _client = new AmazonS3Client(region);
         }
 
-        public static AmazonS3Client SetupBlob(string container, string path)
+        public static async Task<AmazonS3Client> SetupBlob(string container, string path)
         {
             var request = new ListVersionsRequest
             {
@@ -29,7 +30,7 @@ namespace Kalix.Leo.Amazon.Tests
                 Prefix = path
             };
 
-            var resp = _client.ListVersions(request);
+            var resp = await _client.ListVersionsAsync(request).ConfigureAwait(false);
             var toDelete = resp.Versions.Where(v => v.Key == path).Select(v => new KeyVersion
             {
                 Key = v.Key,
@@ -45,7 +46,7 @@ namespace Kalix.Leo.Amazon.Tests
                     Quiet = true
                 };
 
-                _client.DeleteObjects(delRequest);
+                await _client.DeleteObjectsAsync(delRequest).ConfigureAwait(false);
             }
 
             return _client;

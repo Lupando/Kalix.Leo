@@ -65,7 +65,7 @@ namespace Kalix.Leo.Azure.Storage
 
         private async Task GetBlocksAsync(CancellationToken ct)
         {
-            var blockList = (await _blob.ExecuteWrap(b => b.DownloadBlockListAsync(ct)).ConfigureAwait(false)).ToList();
+            var blockList = (await _blob.ExecuteWrap(b => b.DownloadBlockListAsync(BlockListingFilter.Committed, null, null, null, ct)).ConfigureAwait(false)).ToList();
             // Make sure that we get the blocks in order...
             _orderedBlocks = blockList.OrderBy(l => BitConverter.ToInt32(Convert.FromBase64String(l.Name), 0)).ToList();
             _currentBlock = 0;
@@ -81,7 +81,7 @@ namespace Kalix.Leo.Azure.Storage
                 if (current != 0) { return; }
 
                 // Doesn't have blocks - just do the single download
-                await _blob.ExecuteWrap(b => b.DownloadToStreamAsync(_currentBlockData, ct)).ConfigureAwait(false);
+                await _blob.ExecuteWrap(b => b.DownloadToStreamAsync(_currentBlockData, null, null, null, ct)).ConfigureAwait(false);
             }
             else
             {
@@ -91,7 +91,7 @@ namespace Kalix.Leo.Azure.Storage
                 // Do not assume each block is uniform... Make sure to use length info of previous blocks
                 var start = _needsToReadBlockList ? _orderedBlocks.TakeWhile((ol, i) => i < _currentBlock).Sum(ol => ol.Length) : current;
                 var length = _needsToReadBlockList ? _orderedBlocks[_currentBlock].Length : Math.Min(AzureBlockSize, total - current);
-                await _blob.ExecuteWrap(b => b.DownloadRangeToStreamAsync(_currentBlockData, start, length, ct)).ConfigureAwait(false);
+                await _blob.ExecuteWrap(b => b.DownloadRangeToStreamAsync(_currentBlockData, start, length, null, null, null, ct)).ConfigureAwait(false);
             }
 
             _currentBlock++;

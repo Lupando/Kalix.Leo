@@ -1,135 +1,44 @@
-﻿using Kalix.Leo.Streams;
-using Lucene.Net.Store;
+﻿using Lucene.Net.Store;
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Kalix.Leo.Lucene.Store
 {
     /// <summary>
     /// Implements IndexOutput semantics for a write/append only file
     /// </summary>
-    public class SecureStoreIndexOutput : IndexOutput
+    public class SecureStoreIndexOutput : BufferedIndexOutput
     {
-        private static long ticks1970 = new DateTime(1970, 1, 1, 0, 0, 0).Ticks / TimeSpan.TicksPerMillisecond;
+        private readonly IWriteAsyncStream _writeStream;
+        private readonly Action _onComplete;
+        private long _length;
+        private bool _hasDisposed;
 
-        private Directory _cache;
-        private string _name;
-        private IndexOutput _indexOutput;
-        private Mutex _fileMutex;
-
-        private Func<DataWithMetadata, Task> _saveTask;
-
-        public SecureStoreIndexOutput(Directory cache, string cachePath, Func<DataWithMetadata, Task> saveTask)
+        public SecureStoreIndexOutput(string path, IWriteAsyncStream writeStream, Action onComplete)
         {
-            _cache = cache;
-            _name = cachePath;
-            _saveTask = saveTask;
-
-            _fileMutex = BlobMutexManager.GrabMutex(_name);
-            _fileMutex.WaitOne();
-            try
-            {
-                // create the local cache one we will operate against...
-                _indexOutput = _cache.CreateOutput(_name);
-            }
-            finally
-            {
-                _fileMutex.ReleaseMutex();
-            }
+            _writeStream = writeStream;
+            _onComplete = onComplete;
+            _length = 0;
         }
 
-        public override void Flush()
+        public override long Length => _length;
+
+        protected override void FlushBuffer(byte[] b, int offset, int len)
         {
-            _indexOutput.Flush();
+            if (_hasDisposed) { throw new ObjectDisposedException(nameof(SecureStoreIndexOutput)); }
+
+            _length += len;
+            _writeStream.WriteAsync(b, offset, len, CancellationToken.None).WaitAndWrap();
         }
 
         protected override void Dispose(bool disposing)
         {
-            _fileMutex.WaitOne();
-            try
+            base.Dispose(disposing);
+            if (!_hasDisposed)
             {
-                // make sure it's all written out
-                _indexOutput.Flush();
-
-                long originalLength = _indexOutput.Length;
-                _indexOutput.Dispose();
-
-                var blobStream = new StreamInput(_cache.OpenInput(_name));
-                
-                try
-                {
-                    var elapsed = _cache.FileModified(_name);
-
-                    // normalize RAMDirectory and FSDirectory times
-                    if (elapsed > ticks1970)
-                    {
-                        elapsed -= ticks1970;
-                    }
-
-                    var cachedLastModifiedUTC = new DateTime(elapsed, DateTimeKind.Local).ToUniversalTime();
-
-                    var wrapper = new ReadStreamWrapper(blobStream);
-                    var data = new DataWithMetadata(wrapper, new Metadata
-                    {
-                        ContentLength = originalLength,
-                        LastModified = cachedLastModifiedUTC
-                    });
-
-                    _saveTask(data).WaitAndWrap();
-
-                    LeoTrace.WriteLine(string.Format("PUT {1} bytes to {0} in cloud", _name, blobStream.Length));
-                }
-                finally
-                {
-                    blobStream.Dispose();
-                }
-
-                // clean up
-                _indexOutput = null;
-                _cache = null;
-                GC.SuppressFinalize(this);
+                _hasDisposed = true;
+                _onComplete();
             }
-            finally
-            {
-                _fileMutex.ReleaseMutex();
-            }
-        }
-
-        public override long Length
-        {
-            get
-            {
-                return _indexOutput.Length;
-            }
-        }
-
-        public override void WriteByte(byte b)
-        {
-            _indexOutput.WriteByte(b);
-        }
-
-        public override void WriteBytes(byte[] b, int length)
-        {
-            _indexOutput.WriteBytes(b, length);
-        }
-
-        public override void WriteBytes(byte[] b, int offset, int length)
-        {
-            _indexOutput.WriteBytes(b, offset, length);
-        }
-
-        public override long FilePointer
-        {
-            get
-            {
-                return _indexOutput.FilePointer;
-            }
-        }
-
-        public override void Seek(long pos)
-        {
-            _indexOutput.Seek(pos);
         }
     }
 }

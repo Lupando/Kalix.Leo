@@ -122,7 +122,8 @@ namespace Kalix.Leo.Amazon.Storage
         {
             if (_uploader != null)
             {
-                _uploader.Abort();
+                // We just need to finish this off on a new thread
+                Task.Run(() => _uploader.Abort());
                 _uploader = null;
             }
             _isComplete = true;

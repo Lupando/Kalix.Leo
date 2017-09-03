@@ -14,7 +14,7 @@ namespace Kalix.Leo.Lucene
             {
                 try
                 {
-                    task.Wait();
+                    task.GetAwaiter().GetResult();
                 }
                 catch (AggregateException e)
                 {
@@ -30,7 +30,7 @@ namespace Kalix.Leo.Lucene
         {
             try
             {
-                return task.Result;
+                return task.GetAwaiter().GetResult();
             }
             catch (AggregateException e)
             {

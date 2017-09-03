@@ -1,7 +1,7 @@
 ﻿using Kalix.ApiCrypto.AES;
-using Kalix.ApiCrypto.RSA;
 using Kalix.Leo.Storage;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,7 +14,7 @@ namespace Kalix.Leo.Encryption
         private readonly AESEncryptor _encryptor;
         private readonly string _partition;
 
-        public static async Task<IEncryptor> CreateEncryptor(IOptimisticStore store, StoreLocation keyLocation, RSAServiceProvider rsaCert)
+        public static async Task<IEncryptor> CreateEncryptor(IOptimisticStore store, StoreLocation keyLocation, RSA rsaCert)
         {
             bool isFound;
             byte[] blob;

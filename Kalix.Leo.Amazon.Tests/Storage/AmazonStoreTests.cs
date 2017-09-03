@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Kalix.Leo.Amazon.Tests.Storage
 {
@@ -19,10 +20,10 @@ namespace Kalix.Leo.Amazon.Tests.Storage
         protected StoreLocation _location;
 
         [SetUp]
-        public virtual void Init()
+        public virtual async Task Init()
         {
             _bucket = "kalixtest";
-            _client = AmazonTestsHelper.SetupBlob(_bucket, "kalix-leo-tests\\AmazonStoreTests.testdata");
+            _client = await AmazonTestsHelper.SetupBlob(_bucket, "kalix-leo-tests\\AmazonStoreTests.testdata").ConfigureAwait(false);
             _location = new StoreLocation("kalix-leo-tests", "AmazonStoreTests.testdata");
             _store = new AmazonStore(_client, _bucket);
         }
@@ -41,19 +42,19 @@ namespace Kalix.Leo.Amazon.Tests.Storage
         public class SaveDataMethod : AmazonStoreTests
         {
             [Test]
-            public void HasMetadataCorrectlySavesIt()
+            public async Task HasMetadataCorrectlySavesIt()
             {
                 var data = AmazonTestsHelper.RandomData(1);
                 var m = new Metadata();
                 m["metadata1"] = "somemetadata";
                 WriteData(_location, m, data);
 
-                var metadata = GetMetadata(_location);
+                var metadata = await GetMetadata(_location).ConfigureAwait(false);
                 Assert.AreEqual("somemetadata", metadata["metadata1"]);
             }
 
             [Test]
-            public void AlwaysOverridesMetadata()
+            public async Task AlwaysOverridesMetadata()
             {
                 var data = AmazonTestsHelper.RandomData(1);
                 var m = new Metadata();
@@ -64,7 +65,7 @@ namespace Kalix.Leo.Amazon.Tests.Storage
                 m2["metadata2"] = "othermetadata";
                 WriteData(_location, m2, data);
 
-                var metadata = GetMetadata(_location);
+                var metadata = await GetMetadata(_location).ConfigureAwait(false);
                 Assert.IsFalse(metadata.ContainsKey("metadata1"));
                 Assert.AreEqual("othermetadata", metadata["metadata2"]);
             }
@@ -79,13 +80,13 @@ namespace Kalix.Leo.Amazon.Tests.Storage
                 Assert.IsNotNull(metadata);
             }
 
-            private IDictionary<string, string> GetMetadata(StoreLocation location)
+            private async Task<IDictionary<string, string>> GetMetadata(StoreLocation location)
             {
-                var resp = _client.GetObjectMetadata(new GetObjectMetadataRequest
+                var resp = await _client.GetObjectMetadataAsync(new GetObjectMetadataRequest
                 {
                     BucketName = _bucket,
                     Key = Path.Combine(location.Container, location.BasePath),
-                });
+                }).ConfigureAwait(false);
 
                 return resp.Metadata.Keys.ToDictionary(s => s.Replace("x-amz-meta-", string.Empty), s => resp.Metadata[s]);
             }
@@ -182,12 +183,12 @@ namespace Kalix.Leo.Amazon.Tests.Storage
             }
 
             [Test]
-            public void SubItemBlobSnapshotsAreNotIncluded()
+            public async Task SubItemBlobSnapshotsAreNotIncluded()
             {
                 var data = AmazonTestsHelper.RandomData(1);
                 WriteData(_location, null, data);
 
-                AmazonTestsHelper.SetupBlob(_bucket, "kalix-leo-tests\\AzureStoreTests.testdata\\subitem.data");
+                await AmazonTestsHelper.SetupBlob(_bucket, "kalix-leo-tests\\AzureStoreTests.testdata\\subitem.data").ConfigureAwait(false);
                 var location2 = new StoreLocation("kalix-leo-tests", "AzureStoreTests.testdata\\subitem.data");
 
                 WriteData(location2, null, data);

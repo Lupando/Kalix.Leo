@@ -1,111 +1,27 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{27416D6C-0BDF-4DD1-849C-D2431A023E3B}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Kalix.Leo</RootNamespace>
-    <AssemblyName>Kalix.Leo</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>11.0.0-alpha</Version>
+    <Authors>Felix Jorkowski</Authors>
+    <Company>Kalix</Company>
+    <Product>www.kalixhealth.com</Product>
+    <Description>Library to abstract indexing, querying, encryption and compression on a NoSQL store</Description>
+    <Copyright>Copyright 2017</Copyright>
+    <PackageLicenseUrl>https://opensource.org/licenses/mit</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/KalixHealth/Kalix.Leo</PackageProjectUrl>
+    <PackageReleaseNotes>Migrated library to .net standard</PackageReleaseNotes>
+    <PackageTags>Azure Blob Table S3 Encryption Compression</PackageTags>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\Release\Kalix.Leo.XML</DocumentationFile>
-  </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="Kalix.ApiCrypto, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Kalix.ApiCrypto.3.0.0\lib\net45\Kalix.ApiCrypto.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="Security.Cryptography, Version=1.7.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Security.Cryptography.1.7.2\lib\net35\Security.Cryptography.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Interactive.Async, Version=1.2.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Ix-Async.1.2.5\lib\net45\System.Interactive.Async.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System.Runtime.Caching" />
+    <PackageReference Include="Kalix.ApiCrypto" Version="4.0.1" />
   </ItemGroup>
+
   <ItemGroup>
-    <Compile Include="Configuration\ItemConfiguration.cs" />
-    <Compile Include="DocumentPartition.cs" />
-    <Compile Include="Encryption\CertProtectedEncryptor.cs" />
-    <Compile Include="IBasePartition.cs" />
-    <Compile Include="IDocumentPartition.cs" />
-    <Compile Include="IdWithMetadata.cs" />
-    <Compile Include="ILeoEngine.cs" />
-    <Compile Include="Internal\BasePartition.cs" />
-    <Compile Include="Internal\SearchIndex.cs" />
-    <Compile Include="IObjectPartition.cs" />
-    <Compile Include="ISearchIndex.cs" />
-    <Compile Include="LeoEngine.cs" />
-    <Compile Include="Configuration\LeoEngineConfiguration.cs" />
-    <Compile Include="ObjectPartition.cs" />
-    <Compile Include="PathWithMetadata.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
+    <ProjectReference Include="..\Kalix.Leo.Core\Kalix.Leo.Core.csproj" />
+    <ProjectReference Include="..\Kalix.Leo.Lucene\Kalix.Leo.Lucene.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="app.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <None Include="Kalix.Leo.nuspec">
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Kalix.Leo.Core\Kalix.Leo.Core.csproj">
-      <Project>{74b58639-e668-47f2-83ad-1987bbd49f58}</Project>
-      <Name>Kalix.Leo.Core</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Kalix.Leo.Lucene\Kalix.Leo.Lucene.csproj">
-      <Project>{6de256e3-04c1-4e3e-acab-ac6f10d65a38}</Project>
-      <Name>Kalix.Leo.Lucene</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup />
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>rmdir "$(ProjectDir)package" /s /q
-mkdir "$(ProjectDir)package\lib\net45"
-Xcopy.exe /Y "$(TargetDir)Kalix.Leo.dll" "$(ProjectDir)package\lib\net45"
-Xcopy.exe /Y "$(TargetDir)Kalix.Leo.xml" "$(ProjectDir)package\lib\net45"
-Xcopy.exe /Y "$(ProjectDir)Kalix.Leo.nuspec" "$(ProjectDir)package"
-cd "$(ProjectDir)package"
-"$(SolutionDir)Nuget.exe" pack Kalix.Leo.nuspec
-xcopy /Y *.nupkg "$(TargetDir)"</PostBuildEvent>
-  </PropertyGroup>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+
 </Project>
