@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>11.0.1-alpha</Version>
+    <Version>11.0.2-alpha</Version>
     <Authors>Felix Jorkowski</Authors>
     <Company>Kalix</Company>
     <Product>www.kalixhealth.com</Product>
@@ -14,6 +14,8 @@
     <PackageReleaseNotes>4.0.0 - Migrated library to .net standard 
 4.0.1 - Added WaitForGeneration flag on Write method</PackageReleaseNotes>
     <PackageTags>Azure Blob Table S3 Encryption Compression Lucene</PackageTags>
+    <AssemblyVersion>11.0.0.0</AssemblyVersion>
+    <FileVersion>11.0.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
