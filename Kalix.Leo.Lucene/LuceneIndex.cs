@@ -33,16 +33,15 @@ namespace Kalix.Leo.Lucene
         /// </summary>
         /// <param name="store">Store to have the Indexer on top of</param>
         /// <param name="container">Container to put the index</param>
-        /// <param name="RAMSizeMb">The max amount of memory to use before flushing when writing</param>
         /// <param name="basePath">The path to namespace this index in</param>
         /// <param name="encryptor">The encryptor to encryt any records being saved</param>
-        /// <param name="fileBasedPath">If not null, will build lucene file cache at this location (instead of an in-memory one)</param>
-        /// <param name="secsTillReaderRefresh">This is the amount of time to cache the reader before updating it</param>
-        public LuceneIndex(ISecureStore store, string container, string basePath, Lazy<Task<IEncryptor>> encryptor, int secsTillReaderRefresh = 10, IMemoryCache cache = null, string cachePrefix = null)
+        /// <param name="cache">Use the specified memory cache to store files in memory</param>
+        /// <param name="cachePrefix">Caching namespace for memory files</param>
+        public LuceneIndex(ISecureStore store, string container, string basePath, Lazy<Task<IEncryptor>> encryptor, IMemoryCache cache = null, string cachePrefix = null)
         {
             encryptor = encryptor ?? new Lazy<Task<IEncryptor>>(() => Task.FromResult((IEncryptor)null));
             
-            _directory = new NRTCachingDirectory(new SecureStoreDirectory(store, container, basePath, encryptor, cache, cachePrefix), 5.0, 25.0);
+            _directory = new SecureStoreDirectory(store, container, basePath, encryptor, cache, cachePrefix);
             _reader = new Lazy<SearcherManager>(() => new SearcherManager(_directory, null));
             _analyzer = new EnglishAnalyzer();
         }
@@ -52,9 +51,7 @@ namespace Kalix.Leo.Lucene
         /// </summary>
         /// <param name="directory">Lucene directory of your files</param>
         /// <param name="analyzer">Analyzer you want to use for your indexing/searching</param>
-        /// <param name="RAMSizeMb">The max amount of memory to use before flushing when writing</param>
-        /// <param name="secsTillReaderRefresh">This is the amount of time to cache the reader before updating it</param>
-        public LuceneIndex(Directory directory, Analyzer analyzer, double RAMSizeMb = 20, int secsTillReaderRefresh = 10)
+        public LuceneIndex(Directory directory, Analyzer analyzer)
         {
             _directory = directory;
             _reader = new Lazy<SearcherManager>(() => new SearcherManager(_directory, null));
