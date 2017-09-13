@@ -227,20 +227,17 @@ namespace Kalix.Leo.Lucene
             private readonly ControlledRealTimeReopenThread<IndexSearcher> _nrtReopenThread;
 
             public SearcherContextInternal(Directory dir, Analyzer defaultAnalyzer)
-                : this(dir, defaultAnalyzer, TimeSpan.FromSeconds(.1), TimeSpan.FromSeconds(2),
-                TimeSpan.FromSeconds(5), TimeSpan.FromHours(2))
+                : this(dir, defaultAnalyzer, TimeSpan.FromSeconds(.1), TimeSpan.FromSeconds(2))
             {
             }
 
-            public SearcherContextInternal(Directory dir, Analyzer defaultAnalyzer,
-                            TimeSpan targetMinStale, TimeSpan targetMaxStale,
-                            TimeSpan commitInterval, TimeSpan optimizeInterval)
+            public SearcherContextInternal(Directory dir, Analyzer defaultAnalyzer, TimeSpan targetMinStale, TimeSpan targetMaxStale)
             {
                 Analyzer = new PerFieldAnalyzerWrapper(defaultAnalyzer);
                 _writer = new IndexWriter(dir, new IndexWriterConfig(LeoLuceneVersion.Version, Analyzer));
                 _trackingWriter = new TrackingIndexWriter(_writer);
                 _searcherManager = new SearcherManager(_writer, true, null);
-                _nrtReopenThread = new ControlledRealTimeReopenThread<IndexSearcher>(_trackingWriter, _searcherManager, 1.0, 0.1);
+                _nrtReopenThread = new ControlledRealTimeReopenThread<IndexSearcher>(_trackingWriter, _searcherManager, targetMaxStale.TotalSeconds, targetMinStale.TotalSeconds);
                 _nrtReopenThread.SetDaemon(true);
                 _nrtReopenThread.Start();
             }
