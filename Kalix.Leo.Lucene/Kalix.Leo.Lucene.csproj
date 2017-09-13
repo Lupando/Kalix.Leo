@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>11.0.4-alpha</Version>
+    <Version>11.0.6-alpha</Version>
     <Authors>Felix Jorkowski</Authors>
     <Company>Kalix</Company>
     <Product>www.kalixhealth.com</Product>
@@ -15,6 +15,11 @@
     <PackageTags>Azure Blob Table S3 Encryption Compression Lucene</PackageTags>
     <AssemblyVersion>11.0.0.0</AssemblyVersion>
     <FileVersion>11.0.0.0</FileVersion>
+    <IncludeSymbols>True</IncludeSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>bin\Release\netstandard2.0\Kalix.Leo.Lucene.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>

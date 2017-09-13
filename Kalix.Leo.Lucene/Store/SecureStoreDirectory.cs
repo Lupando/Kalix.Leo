@@ -63,7 +63,6 @@ namespace Kalix.Leo.Lucene.Store
         }
 
         [Obsolete]
-        /// <summary>Returns true if a file with the given name exists. </summary>
         public override bool FileExists(string name)
         {
             if(_memoryCache.TryGetValue<byte[]>(GetCacheKey(name), out var bytes))
@@ -126,16 +125,17 @@ namespace Kalix.Leo.Lucene.Store
         /// <summary>Returns a stream reading an existing file. </summary>
         public override IndexInput OpenInput(string name, IOContext context)
         {
-            var data = _memoryCache.GetOrCreateAsync<byte[]>(GetCacheKey(name), async e =>
+            // NOTE: MemoryCache.GetOrCreateAsync does not 'ResultAndWrap' safely
+            var data = _memoryCache.GetOrCreate(GetCacheKey(name), e =>
             {
                 e.SetSlidingExpiration(TimeSpan.FromHours(1)).SetPriority(CacheItemPriority.Low);
                 var loc = GetLocation(name);
-                var enc = await _encryptor.Value.ConfigureAwait(false);
-                var stream = await _store.LoadData(loc, null, enc).ConfigureAwait(false);
+                var enc = _encryptor.Value.ResultAndWrap();
+                var stream = _store.LoadData(loc, null, enc).ResultAndWrap();
                 if (stream == null) { throw new System.IO.FileNotFoundException(name); }
 
-                return await stream.Stream.ReadBytes().ConfigureAwait(false);
-            }).ResultAndWrap();
+                return stream.Stream.ReadBytes().ResultAndWrap();
+            });
 
             return new SecureStoreIndexInput(data);
         }

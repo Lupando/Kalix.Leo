@@ -39,16 +39,17 @@ namespace Kalix.Leo.Lucene.Tests
         }
 
         [Test]
-        public void CannotWriteTwoLuceneIndexesOnSameStore()
+        public async Task CannotWriteTwoLuceneIndexesOnSameStore()
         {
-            _indexer.DeleteAll().Wait();
+            var docs = CreateIpsumDocs(1);
+            await _indexer.WriteToIndex(docs, true).ConfigureAwait(false);
 
             var store = new SecureStore(_store);
             using (var indexer2 = new LuceneIndex(store, "testindexer", "basePath", null))
             {
-                Assert.Throws<LockObtainFailedException>(() =>
+                Assert.ThrowsAsync<LockObtainFailedException>(() =>
                 {
-                    indexer2.DeleteAll().Wait();
+                    return indexer2.WriteToIndex(docs);
                 });
             }
         }

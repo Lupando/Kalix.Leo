@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Kalix.Leo.Core</PackageId>
-    <Version>11.0.0-alpha</Version>
+    <Version>11.0.1-alpha</Version>
     <Authors>Felix Jorkowski</Authors>
     <Company>Kalix</Company>
     <Product>www.kalixhealth.com</Product>
@@ -14,6 +14,11 @@
     <PackageProjectUrl>https://github.com/KalixHealth/Kalix.Leo</PackageProjectUrl>
     <PackageTags>Azure Blob Table S3 Encryption Compression</PackageTags>
     <PackageReleaseNotes>Migrated library to .net standard</PackageReleaseNotes>
+    <IncludeSymbols>True</IncludeSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>bin\Release\netstandard2.0\Kalix.Leo.Core.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>

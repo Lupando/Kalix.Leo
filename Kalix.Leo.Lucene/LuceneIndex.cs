@@ -211,7 +211,10 @@ namespace Kalix.Leo.Lucene
             if (!DirectoryReader.IndexExists(directory))
             {
                 // this index doesn't exist... make it!
-                using (new IndexWriter(directory, new IndexWriterConfig(LeoLuceneVersion.Version, analyzer))) { }
+                using (new IndexWriter(directory, new IndexWriterConfig(LeoLuceneVersion.Version, analyzer)
+                {
+                    OpenMode = OpenMode.CREATE_OR_APPEND
+                })) { }
             }
 
             return new SearcherManager(directory, null);
@@ -234,7 +237,10 @@ namespace Kalix.Leo.Lucene
             public SearcherContextInternal(Directory dir, Analyzer defaultAnalyzer, TimeSpan targetMinStale, TimeSpan targetMaxStale)
             {
                 Analyzer = new PerFieldAnalyzerWrapper(defaultAnalyzer);
-                _writer = new IndexWriter(dir, new IndexWriterConfig(LeoLuceneVersion.Version, Analyzer));
+                _writer = new IndexWriter(dir, new IndexWriterConfig(LeoLuceneVersion.Version, Analyzer)
+                {
+                    OpenMode = OpenMode.CREATE_OR_APPEND
+                });
                 _trackingWriter = new TrackingIndexWriter(_writer);
                 _searcherManager = new SearcherManager(_writer, true, null);
                 _nrtReopenThread = new ControlledRealTimeReopenThread<IndexSearcher>(_trackingWriter, _searcherManager, targetMaxStale.TotalSeconds, targetMinStale.TotalSeconds);

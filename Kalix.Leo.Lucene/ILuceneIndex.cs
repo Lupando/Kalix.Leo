@@ -41,6 +41,7 @@ namespace Kalix.Leo.Lucene
         /// Write documents with complete access to the lucene index
         /// </summary>
         /// <param name="writeUsingIndex">Do your indexing with the provided index</param>
+        /// <param name="waitForGeneration">Should the writer wait for a generation</param>
         /// <returns>A task that is complete when all the documents have been indexed</returns>
         Task WriteToIndex(Func<TrackingIndexWriter, Task> writeUsingIndex, bool waitForGeneration = false);
 
