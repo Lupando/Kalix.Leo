@@ -34,8 +34,8 @@ namespace Kalix.Leo.Lucene.Tests
         [TearDown]
         public void TearDown()
         {
-            _indexer.DeleteAll().Wait();
             _indexer.Dispose();
+            _store.PermanentDeleteContainer("testindexer").Wait();
         }
 
         [Test]

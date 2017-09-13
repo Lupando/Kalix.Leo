@@ -42,8 +42,9 @@ namespace Kalix.Leo.Lucene
             encryptor = encryptor ?? new Lazy<Task<IEncryptor>>(() => Task.FromResult((IEncryptor)null));
             
             _directory = new SecureStoreDirectory(store, container, basePath, encryptor, cache, cachePrefix);
-            _reader = new Lazy<SearcherManager>(() => new SearcherManager(_directory, null));
             _analyzer = new EnglishAnalyzer();
+
+            _reader = new Lazy<SearcherManager>(() => BuildSearcherManagerReader(_directory, _analyzer), true);
         }
 
         /// <summary>
@@ -54,8 +55,9 @@ namespace Kalix.Leo.Lucene
         public LuceneIndex(Directory directory, Analyzer analyzer)
         {
             _directory = directory;
-            _reader = new Lazy<SearcherManager>(() => new SearcherManager(_directory, null));
             _analyzer = analyzer;
+
+            _reader = new Lazy<SearcherManager>(() => BuildSearcherManagerReader(_directory, _analyzer), true);
         }
 
         public Task WriteToIndex(IEnumerable<Document> documents, bool waitForGeneration = false)
@@ -141,8 +143,12 @@ namespace Kalix.Leo.Lucene
                 throw new ObjectDisposedException("LuceneIndex");
             }
 
-            var writer = GetWriter();
-            writer.DeleteAll();
+            if (DirectoryReader.IndexExists(_directory))
+            {
+                var writer = GetWriter();
+                writer.DeleteAll();
+            }
+
             return Task.FromResult(0);
         }
 
@@ -200,6 +206,17 @@ namespace Kalix.Leo.Lucene
             }
         }
         
+        private static SearcherManager BuildSearcherManagerReader(Directory directory, Analyzer analyzer)
+        {
+            if (!DirectoryReader.IndexExists(directory))
+            {
+                // this index doesn't exist... make it!
+                using (new IndexWriter(directory, new IndexWriterConfig(LeoLuceneVersion.Version, analyzer))) { }
+            }
+
+            return new SearcherManager(directory, null);
+        }
+
         private class SearcherContextInternal : IDisposable
         {
             public PerFieldAnalyzerWrapper Analyzer { get; private set; }

@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>11.0.3-alpha</Version>
+    <Version>11.0.4-alpha</Version>
     <Authors>Felix Jorkowski</Authors>
     <Company>Kalix</Company>
     <Product>www.kalixhealth.com</Product>
@@ -11,8 +11,7 @@
     <Copyright>Copyright 2017</Copyright>
     <PackageLicenseUrl>https://opensource.org/licenses/mit</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/KalixHealth/Kalix.Leo</PackageProjectUrl>
-    <PackageReleaseNotes>4.0.0 - Migrated library to .net standard 
-4.0.1 - Added WaitForGeneration flag on Write method</PackageReleaseNotes>
+    <PackageReleaseNotes>Migrated library to .net standard</PackageReleaseNotes>
     <PackageTags>Azure Blob Table S3 Encryption Compression Lucene</PackageTags>
     <AssemblyVersion>11.0.0.0</AssemblyVersion>
     <FileVersion>11.0.0.0</FileVersion>
