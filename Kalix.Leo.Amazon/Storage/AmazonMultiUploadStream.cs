@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Kalix.Leo.Core;
 
 namespace Kalix.Leo.Amazon.Storage
 {
@@ -123,7 +124,10 @@ namespace Kalix.Leo.Amazon.Storage
             if (_uploader != null)
             {
                 // We just need to finish this off on a new thread
-                Task.Run(() => _uploader.Abort());
+                try
+                {
+                    SafeTask.SafeWait(() => _uploader.Abort());
+                } catch (Exception) { }
                 _uploader = null;
             }
             _isComplete = true;

@@ -1,4 +1,5 @@
-﻿using Kalix.Leo.Storage;
+﻿using Kalix.Leo.Core;
+using Kalix.Leo.Storage;
 using Lucene.Net.Store;
 using System;
 
@@ -27,7 +28,7 @@ namespace Kalix.Leo.Lucene.Store
         {
             if (_lock == null)
             {
-                _lock = _store.Lock(_location).ResultAndWrap();
+                _lock = SafeTask.SafeResult(() => _store.Lock(_location));
             }
 
             return _lock != null;

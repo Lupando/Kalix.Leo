@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>11.0.6-alpha</Version>
+    <Version>11.0.8-alpha</Version>
     <Authors>Felix Jorkowski</Authors>
     <Company>Kalix</Company>
     <Product>www.kalixhealth.com</Product>

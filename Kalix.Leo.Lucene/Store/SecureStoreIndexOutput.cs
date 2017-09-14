@@ -1,6 +1,7 @@
 ﻿using Lucene.Net.Store;
 using System;
 using System.Threading;
+using Kalix.Leo.Core;
 
 namespace Kalix.Leo.Lucene.Store
 {
@@ -28,7 +29,7 @@ namespace Kalix.Leo.Lucene.Store
             if (_hasDisposed) { throw new ObjectDisposedException(nameof(SecureStoreIndexOutput)); }
 
             _length += len;
-            _writeStream.WriteAsync(b, offset, len, CancellationToken.None).WaitAndWrap();
+            SafeTask.SafeWait(() => _writeStream.WriteAsync(b, offset, len, CancellationToken.None));
         }
 
         protected override void Dispose(bool disposing)

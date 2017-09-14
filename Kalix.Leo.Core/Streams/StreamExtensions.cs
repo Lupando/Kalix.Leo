@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Kalix.Leo.Core;
 
 namespace Kalix.Leo
 {
@@ -293,7 +294,7 @@ namespace Kalix.Leo
 
                         // Otherwise we are forced to load more data :(
                         // Note: this could cause deadlock? Shouldn't in Leo Engine...
-                        PrepareData().Wait();
+                        SafeTask.SafeWait(() => PrepareData());
                         continue;
                     }
 

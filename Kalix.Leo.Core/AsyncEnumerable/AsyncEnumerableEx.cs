@@ -151,28 +151,8 @@ namespace System.Collections.Generic
                     _yielder = null;
                 }
                 
-                var t = _task;
-                if (t != null)
-                {
-                    try
-                    {
-                        t.Wait();
-                    }
-                    catch (AggregateException ex)
-                    {
-                        var b = ex.GetBaseException();
-                        if (!(b is AsyncYielderDisposedException || b is TaskCanceledException))
-                        {
-                            throw;
-                        }
-                    }
-                    finally
-                    {
-                        t.Dispose();
-                        _task = null;
-                        _func = null;
-                    }
-                }
+                // Let the task finish on its own
+                _task = null;
             }
         }
     }

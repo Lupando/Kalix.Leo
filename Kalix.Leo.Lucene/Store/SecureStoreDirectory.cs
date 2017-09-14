@@ -1,4 +1,5 @@
-﻿using Kalix.Leo.Encryption;
+﻿using Kalix.Leo.Core;
+using Kalix.Leo.Encryption;
 using Kalix.Leo.Storage;
 using Lucene.Net.Store;
 using Microsoft.Extensions.Caching.Memory;
@@ -40,7 +41,7 @@ namespace Kalix.Leo.Lucene.Store
                 _options = _options | SecureStoreOptions.Compress;
             }
 
-            store.CreateContainerIfNotExists(container).WaitAndWrap();
+            SafeTask.SafeWait(() => store.CreateContainerIfNotExists(container));
         }
 
         public override LockFactory LockFactory => _lockFactory;
@@ -48,7 +49,7 @@ namespace Kalix.Leo.Lucene.Store
         /// <summary>Returns an array of strings, one for each file in the directory. </summary>
         public override string[] ListAll()
         {
-            return ListAllAsync().ResultAndWrap();
+            return SafeTask.SafeResult(() => ListAllAsync());
         }
 
         private async Task<string[]> ListAllAsync()
@@ -70,7 +71,7 @@ namespace Kalix.Leo.Lucene.Store
                 return true;
             }
 
-            var metadata = _store.GetMetadata(GetLocation(name)).ResultAndWrap();
+            var metadata = SafeTask.SafeResult(() => _store.GetMetadata(GetLocation(name)));
             return metadata != null;
         }
 
@@ -78,7 +79,7 @@ namespace Kalix.Leo.Lucene.Store
         public override void DeleteFile(string name)
         {
             var location = GetLocation(name);
-            _store.Delete(location, null, _options).WaitAndWrap();
+            SafeTask.SafeWait(() => _store.Delete(location, null, _options));
             LeoTrace.WriteLine(String.Format("DELETE {0}", location.BasePath));
 
             _memoryCache.Remove(GetCacheKey(name));
@@ -92,7 +93,7 @@ namespace Kalix.Leo.Lucene.Store
                 return bytes.LongLength;
             }
 
-            var metadata = _store.GetMetadata(GetLocation(name)).ResultAndWrap();
+            var metadata = SafeTask.SafeResult(() => _store.GetMetadata(GetLocation(name)));
             return metadata == null || !metadata.ContentLength.HasValue ? 0 : metadata.ContentLength.Value;
         }
 
@@ -106,36 +107,38 @@ namespace Kalix.Leo.Lucene.Store
             var streamToken = new TaskCompletionSource<IWriteAsyncStream>();
             var completeToken = new TaskCompletionSource<bool>();
 
-            var saveTask = CreateSaveTask(loc, streamToken, completeToken.Task);
-            var stream = streamToken.Task.ResultAndWrap();
+            var saveTask = Task.Run(() => CreateSaveTask(loc, streamToken, completeToken.Task));
+            var stream = SafeTask.SafeResult(() => streamToken.Task);
 
             return new SecureStoreIndexOutput(name, stream, () =>
             {
-                completeToken.SetResult(true);
-                var m = saveTask.ResultAndWrap();
+                SafeTask.SafeWait(async () =>
+                {
+                    completeToken.SetResult(true);
+                    var m = await saveTask.ConfigureAwait(false);
 
-                // We didn't know the content length until now, so save it as a final step
-                var metadata = new Metadata();
-                metadata.ContentLength = m.ContentLength.Value;
+                    // We didn't know the content length until now, so save it as a final step
+                    var metadata = new Metadata();
+                    metadata.ContentLength = m.ContentLength.Value;
 
-                _store.SaveMetadata(loc, metadata, _options).WaitAndWrap();
+                    await _store.SaveMetadata(loc, metadata, _options).ConfigureAwait(false);
+                });
             });
         }
 
         /// <summary>Returns a stream reading an existing file. </summary>
         public override IndexInput OpenInput(string name, IOContext context)
         {
-            // NOTE: MemoryCache.GetOrCreateAsync does not 'ResultAndWrap' safely
-            var data = _memoryCache.GetOrCreate(GetCacheKey(name), e =>
+            var data = SafeTask.SafeResult(() => _memoryCache.GetOrCreateAsync(GetCacheKey(name), async e =>
             {
                 e.SetSlidingExpiration(TimeSpan.FromHours(1)).SetPriority(CacheItemPriority.Low);
                 var loc = GetLocation(name);
-                var enc = _encryptor.Value.ResultAndWrap();
-                var stream = _store.LoadData(loc, null, enc).ResultAndWrap();
+                var enc = await _encryptor.Value.ConfigureAwait(false);
+                var stream = await _store.LoadData(loc, null, enc).ConfigureAwait(false);
                 if (stream == null) { throw new System.IO.FileNotFoundException(name); }
 
-                return stream.Stream.ReadBytes().ResultAndWrap();
-            });
+                return await stream.Stream.ReadBytes().ConfigureAwait(false);
+            }));
 
             return new SecureStoreIndexInput(data);
         }
